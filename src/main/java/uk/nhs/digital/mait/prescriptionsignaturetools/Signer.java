@@ -23,6 +23,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.InputStreamReader;
+import java.io.StringWriter;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -36,6 +37,7 @@ import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
+import org.w3c.dom.NodeList;
 import org.warlock.util.xsltransform.TransformManager;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
@@ -291,7 +293,6 @@ public class Signer
         nullSig.removeAttribute("nullFlavor");
 
         // Cases where we need to "break" the signature by post-processing.
-        // TODO: Complete these.
         //
         if (sopts.breakDigest()) {
             // Break the "DigestValue" in "SignedInfo"
@@ -365,48 +366,115 @@ public class Signer
         Document doc = null;
         @SuppressWarnings("UnusedAssignment")
         Element sig = null;
-        String hl7prescription = xml;
         
         TransformManager tm = TransformManager.getInstance();
-        try {
-            fragments = tm.doTransform(fragmentExtractorTransform, hl7prescription);
-        }
-        catch (Exception e) {
-            hl7prescription = unpackFromLog(fname, xml);
-            if (hl7prescription != null) {
-                hl7prescription = hl7prescription.trim();
-            } else {
-                // Try trimming
-                
-               hl7prescription = xml.trim();
-            } 
-            try {
-                fragments = tm.doTransform(fragmentExtractorTransform, hl7prescription);
-            }
-            catch (Exception e1) {
-                System.out.println(fname + "\tFAILED\tCannot read prescription or fragment extract failed");
-                return;
-            }
-        }
         CryptoProvider cp = cryptoFactory.getProvider(CryptoProviderFactory.VERIFY);
         DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
         dbf.setNamespaceAware(true);
         dbf.setIgnoringComments(true);
-        try {
-            doc = dbf.newDocumentBuilder().parse(new InputSource(new CharArrayReader(hl7prescription.toCharArray())));
-            sig = (Element)doc.getElementsByTagNameNS("http://www.w3.org/2000/09/xmldsig#", "Signature").item(0);
+        ArrayList<VerificationTarget> targets = getVerificationTargets(fname, xml, tm, dbf);
+        for (VerificationTarget t : targets) {
+            StringBuilder sb = new StringBuilder("File: ");
+            sb.append(t.getFileName());
+            sb.append(" UUID: ");
+            sb.append(t.getId());
+            String reportingname = sb.toString();
+            try {
+//                doc = dbf.newDocumentBuilder().parse(new InputSource(new CharArrayReader(hl7prescription.toCharArray())));
+                doc = dbf.newDocumentBuilder().parse(new InputSource(new CharArrayReader(t.getRx().toCharArray())));
+                sig = (Element)doc.getElementsByTagNameNS("http://www.w3.org/2000/09/xmldsig#", "Signature").item(0);
+            }
+            catch (IOException | ParserConfigurationException | SAXException e) {
+                System.out.println(reportingname + "\tFAILED\tCannot read signature");
+                return;
+            }
+            if (sig == null){ 
+                System.out.println(reportingname + "\tFAILED\tCannot read signature");
+                return;
+            }
+            fragments = t.getFragments();
+            if (cp.verify(reportingname, sig, fragments, this)) {
+                System.out.println(reportingname + "\tSUCCESS");
+            }
         }
-        catch (IOException | ParserConfigurationException | SAXException e) {
-            System.out.println(fname + "\tFAILED\tCannot read signature");
-            return;
-        }
-        if (sig == null){ 
-            System.out.println(fname + "\tFAILED\tCannot read signature");
-            return;
-        }
-        if (cp.verify(fname, sig, fragments, this)) {
-            System.out.println(fname + "\tSUCCESS");
-        }
+    }
+    
+    private ArrayList<VerificationTarget> getVerificationTargets(String f, String x, TransformManager t, DocumentBuilderFactory dbf) {
+    
+        ArrayList<VerificationTarget> targets = new ArrayList<>();
+        // TODO: The "xml" may be a nominated release response with multiple prescriptions in it. And it
+        // may be anything in a log file. Abstract the try/catch block into a method that returns an
+        // ArrayList<VerificationTarget> containing the transformed "fragments" for each extracted prescription,
+        // the file name and the prescription id. Then put the actual verification into a loop.
+
+        if (x.contains("PORX_IN070101UK31")) {
+            boolean ok = false;
+            boolean beenhere = false;
+            String xml = x;
+            while (!ok) {
+                try {
+                    Document doc = dbf.newDocumentBuilder().parse(new InputSource(new CharArrayReader(xml.toCharArray())));
+                    NodeList nl = doc.getElementsByTagNameNS("urn:hl7-org:v3", "ParentPrescription");
+                    if (nl.getLength() == 0) {
+                        System.out.println(f + "\tFAILED\tCannot read prescriptions from nominated release response");
+                        return targets;
+                    }
+                    for (int i = 0; i < nl.getLength(); i++) {
+                        StringWriter osw = new StringWriter();
+                        StreamResult sr = new StreamResult(osw);
+                        Transformer tx = TransformerFactory.newInstance().newTransformer();
+                        tx.transform(new DOMSource((Element)nl.item(i)), sr);
+                        osw.flush();
+                        String frag = t.doTransform(fragmentExtractorTransform, osw.toString());
+                        targets.add(new VerificationTarget(f, frag, osw.toString(), getRxID(frag)));                        
+                    }
+                    ok = true;
+                }
+                catch (Exception e) {
+                    if (beenhere) {
+                        System.out.println(f + "\tFAILED\tCannot read prescriptions from nominated release response");
+                        return targets;
+                    }
+                    beenhere = true;
+                    xml = unpackFromLog(f, x);
+                    if (xml != null) {
+                        xml = xml.trim();
+                    } else {
+                        xml = x.trim();
+                    }
+                }
+            }
+        } else {
+            try {
+                String frag = t.doTransform(fragmentExtractorTransform, x);
+                targets.add(new VerificationTarget(f, frag, x, getRxID(frag)));
+            }
+            catch (Exception e) {
+                String h = unpackFromLog(f, x);
+                if (h != null) {
+                    h = h.trim();
+                } else {
+                    // Try trimming
+
+                   h = x.trim();
+                } 
+                try {
+                    String frag = t.doTransform(fragmentExtractorTransform, h);
+                    targets.add(new VerificationTarget(f, frag, x, getRxID(frag)));
+                }
+                catch (Exception e1) {
+                    System.out.println(f + "\tFAILED\tCannot read prescription or fragment extract failed");
+                }
+                
+            }
+        }          
+        return targets;
+    }
+    
+    private String getRxID(String f) {
+        String s = f.substring(f.indexOf("root=\"") + 6);
+        s = s.substring(0, s.indexOf("\""));
+        return s;
     }
     
     private String unpackFromLog(String fname, String l) 

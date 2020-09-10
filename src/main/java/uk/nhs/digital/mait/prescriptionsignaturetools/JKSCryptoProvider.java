@@ -158,7 +158,7 @@ public class JKSCryptoProvider
             return false;
         } else {
             Node sm = smList.item(0);
-            System.out.println("Note: " + fname + "\tSignatureMethod " + ((Element)sm).getAttribute("Algorithm"));
+            System.out.println(fname + "\tSignatureMethod " + ((Element)sm).getAttribute("Algorithm"));
         }
         NodeList dmList = signatureNode.getElementsByTagName("DigestMethod");
         if (dmList.getLength() == 0) {
@@ -166,7 +166,7 @@ public class JKSCryptoProvider
             return false;
         } else {
             Node dm = dmList.item(0);
-            System.out.println("Note: " + fname + "\tDigestMethod " + ((Element)dm).getAttribute("Algorithm"));
+            System.out.println(fname + "\tDigestMethod " + ((Element)dm).getAttribute("Algorithm"));
         }
         Node crt = signatureNode.getElementsByTagNameNS("http://www.w3.org/2000/09/xmldsig#", "X509Certificate").item(0);
         NodeList crtChildren = crt.getChildNodes();

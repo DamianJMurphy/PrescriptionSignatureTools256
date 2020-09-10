@@ -37,10 +37,10 @@ public class TransformManager {
 
     private static final String FACTORYCLASS = "net.sf.saxon.TransformerFactoryImpl";
 
-    private static TransformerFactory transformerFactory = TransformerFactory.newInstance();;
+    private static final TransformerFactory transformerFactory = TransformerFactory.newInstance();;
     private TransformErrorListenerImpl errorHandler;
-    private static TransformManager manager = new TransformManager();
-    private static HashMap<String,Transformer> transforms = new HashMap<String,Transformer>();
+    private static final TransformManager manager = new TransformManager();
+    private static final HashMap<String,Transformer> transforms = new HashMap<String,Transformer>();
 
     private static Exception bootException = null;
     private TransformManager()
@@ -84,19 +84,10 @@ public class TransformManager {
         StringWriter w = new StringWriter();
         StreamResult r = new StreamResult(w);
         Transformer t = transforms.get(tname);
-         // rido2 - debug point. Check tks.log.transform.errors for logging of transform errors. Default is to log.
-//        String redirectTransformErrors = System.getProperty("tks.debug.redirecttransformerrors");
-//        if ((redirectTransformErrors == null) || (redirectTransformErrors.toUpperCase().startsWith("Y"))) {
-//        TransformErrorListenerImpl errorHandler=new TransformErrorListenerImpl();
         if(errorHandler!= null){
             t.setErrorListener(errorHandler);
         }
-//        }
-        // rido2 - end debug point.
-//        synchronized(t)
-//        {        
-            t.transform(s, r);        
-//        }
+        t.transform(s, r);        
         return w.getBuffer().toString();        
     }
     
@@ -110,10 +101,7 @@ public class TransformManager {
         StringWriter w = new StringWriter();
         StreamResult r = new StreamResult(w);
         Transformer t = transforms.get(tname);
-//        synchronized(t) {
-            t.transform(s, r);
-//        }
-//        return r.toString();
+        t.transform(s, r);
         return w.getBuffer().toString();
     }
 
@@ -124,6 +112,7 @@ public class TransformManager {
             return;
         }
         StreamSource s = new StreamSource(is);
+        @SuppressWarnings("UnusedAssignment")
         Templates t = null;
         t = transformerFactory.newTemplates(s);
         Transformer tf = t.newTransformer();
@@ -159,6 +148,7 @@ public class TransformManager {
             throw new Exception("Transform file " + f + " not found");
         }
         StreamSource s = new StreamSource(f);
+        @SuppressWarnings("UnusedAssignment")
         Templates t = null;
         t = transformerFactory.newTemplates(s);
         Transformer tf = t.newTransformer();
