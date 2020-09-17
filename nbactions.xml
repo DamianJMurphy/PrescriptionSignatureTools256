@@ -10,7 +10,7 @@
                 <goal>org.codehaus.mojo:exec-maven-plugin:1.5.0:exec</goal>
             </goals>
             <properties>
-                <exec.args>-classpath %classpath uk.nhs.digital.mait.prescriptionsignaturetools.PrescriptionSignatureTools verify pst2verify.properties</exec.args>
+                <exec.args>-classpath %classpath uk.nhs.digital.mait.prescriptionsignaturetools.PrescriptionSignatureTools sign pst2signPKCS12.properties</exec.args>
                 <exec.executable>java</exec.executable>
                 <exec.workingdir>C:\Users\Damian Murphy\Documents\Tests\PrescriptionSignatureTools2</exec.workingdir>
             </properties>
@@ -25,7 +25,7 @@
                 <goal>org.codehaus.mojo:exec-maven-plugin:1.5.0:exec</goal>
             </goals>
             <properties>
-                <exec.args>-agentlib:jdwp=transport=dt_socket,server=n,address=${jpda.address} -classpath %classpath uk.nhs.digital.mait.prescriptionsignaturetools.PrescriptionSignatureTools verify pst2verify.properties</exec.args>
+                <exec.args>-agentlib:jdwp=transport=dt_socket,server=n,address=${jpda.address} -classpath %classpath uk.nhs.digital.mait.prescriptionsignaturetools.PrescriptionSignatureTools sign pst2signPKCS12.properties</exec.args>
                 <exec.executable>java</exec.executable>
                 <jpda.listen>true</jpda.listen>
                 <exec.workingdir>C:\Users\Damian Murphy\Documents\Tests\PrescriptionSignatureTools2</exec.workingdir>
@@ -41,7 +41,7 @@
                 <goal>org.codehaus.mojo:exec-maven-plugin:1.5.0:exec</goal>
             </goals>
             <properties>
-                <exec.args>-classpath %classpath uk.nhs.digital.mait.prescriptionsignaturetools.PrescriptionSignatureTools verify pst2verify.properties</exec.args>
+                <exec.args>-classpath %classpath uk.nhs.digital.mait.prescriptionsignaturetools.PrescriptionSignatureTools sign pst2signPKCS12.properties</exec.args>
                 <exec.executable>java</exec.executable>
                 <exec.workingdir>C:\Users\Damian Murphy\Documents\Tests\PrescriptionSignatureTools2</exec.workingdir>
             </properties>
